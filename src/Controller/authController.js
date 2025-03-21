@@ -4,6 +4,8 @@ import { createStudentId, env } from './../../core.js';
 const stringPattern = /^[\w\s.,-]+$/
 const emailPattern = /^[^@\s]+@[^@\s]+\.[^@\s]+$/
 
+const usersDb = []
+
 export async function registerController(req, res){
   let { firstname, middlename, surname, email, password, cpassword} = req.body
   if(!firstname) return res.json({ status: 403, msg: 'Enter your firstname' })
@@ -50,7 +52,7 @@ export async function loginController(req, res){
     const user = await usersDb.find(student => student.email === email)
     if(!user) return res.json({ status: 404, msg: 'Invalid credentials' })
       console.log(user)
-    const isPasswordMatch = await bycrypt.compare(password, user.password)
+    const isPasswordMatch = await bcrypt.compare(password, user.password)
     if(!isPasswordMatch) return res.json({ status: 402, msg: 'Incorrect password' })
     const newUser = { ...user }
     delete newUser.password
