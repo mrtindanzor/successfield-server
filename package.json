@@ -4,10 +4,10 @@
   "description": "Successfield college backend server",
   "license": "ISC",
   "author": "Mr. Tindanzor Simon",
-  "type": "commonjs",
+  "type": "module",
   "main": "server.js",
   "scripts": {
-    "test": "nodemon server.js --ignore /public",
+    "dev": "nodemon server.js --ignore /public",
     "start": "node server.js"
   },
   "dependencies": {

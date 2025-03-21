@@ -1,6 +1,8 @@
-const { courseModel } = require('./../../core')
+import { courseModel, env } from './../../core.js'
+import coursesDb from './../db/coursesDb.js'
+const Courses = env.PROD_ENV === 'PROD' ? await courseModel.find({ }) : coursesDb
 
-module.exports.getCourses = async function(_, res){
-  const courses = await courseModel.find({})
-  return res.json(courses)
+
+export async function getCourses(_, res){
+  return res.json({ courses: Courses })
 }

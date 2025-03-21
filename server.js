@@ -1,8 +1,9 @@
-const { env } = require('./core.js');
-const cors = require('cors')
-const cookieParser = require('cookie-parser')
-const express = require('express')
-const routers = require('./routers')
+import { env } from './core.js'
+import cors from 'cors'
+import cookieParser from 'cookie-parser'
+import express from 'express'
+import router from './routers.js'
+
 const server = express()
 const PORT = env.PORT
 
@@ -13,6 +14,6 @@ server.use(cors({
 }))
 server.use(cookieParser(env.COOKIE_SECRET_KEY))
 server.use(express.json())
-server.use(routers)
+server.use(router)
 
 server.listen(PORT, function() { console.log('Server running on port', PORT)})

@@ -1,12 +1,10 @@
-const jwt = require('jsonwebtoken')
-const bcrypt = require('bcrypt')
-const { createStudentId, env } = require('./../../core.js');
+import jsonwebtoken from 'jsonwebtoken';
+import bcrypt from 'bcrypt';
+import { createStudentId, env } from './../../core.js';
 const stringPattern = /^[\w\s.,-]+$/
 const emailPattern = /^[^@\s]+@[^@\s]+\.[^@\s]+$/
 
-const usersDb = []
-
-module.exports.registerController = async function(req, res){
+export async function registerController(req, res){
   let { firstname, middlename, surname, email, password, cpassword} = req.body
   if(!firstname) return res.json({ status: 403, msg: 'Enter your firstname' })
   if(!surname) return res.json({ status: 403, msg: 'Enter your surname' })
@@ -39,7 +37,7 @@ module.exports.registerController = async function(req, res){
   }
 }
 
-module.exports.loginController = async function(req, res){
+export async function loginController(req, res){
   let { email, password } = req.body
   if(!email) return res.json({ status: 403, msg: 'Enter a valid email address' })
   if(!password) return res.json({ status: 403, msg: 'Enter password' })
@@ -52,12 +50,12 @@ module.exports.loginController = async function(req, res){
     const user = await usersDb.find(student => student.email === email)
     if(!user) return res.json({ status: 404, msg: 'Invalid credentials' })
       console.log(user)
-    const isPasswordMatch = await bcrypt.compare(password, user.password)
+    const isPasswordMatch = await bycrypt.compare(password, user.password)
     if(!isPasswordMatch) return res.json({ status: 402, msg: 'Incorrect password' })
     const newUser = { ...user }
     delete newUser.password
-    const token = jwt.sign(newUser, env.ACCESS_TOKEN_SECRET, {expiresIn: '15m' })
-    const refreshToken = jwt.sign(newUser, env.REFRESH_TOKEN_SECRET, {expiresIn: '15d' })
+    const token = jsonwebtoken.sign(newUser, env.ACCESS_TOKEN_SECRET, {expiresIn: '15m' })
+    const refreshToken = jsonwebtoken.sign(newUser, env.REFRESH_TOKEN_SECRET, {expiresIn: '15d' })
     const maxAge = 15 * 24 * 60 * 60 * 1000
     res.cookie('authorizationCookie', refreshToken, { signed: true, httpOnly: true, secure: false, maxAge })
     return res.json({ status: 200, msg: 'Signed in', token, newUser })
@@ -70,15 +68,15 @@ module.exports.loginController = async function(req, res){
   
 } 
 
-module.exports.refreshController = async function(req, res){
+export async function refreshController(req, res){
   const cookie = req.signedCookies.authorizationCookie
   if(!cookie) return res.json({ token: '' })
     try{
-      jwt.verify(cookie, env.REFRESH_TOKEN_SECRET, (err, payload) => {
+      jsonwebtoken.verify(cookie, env.REFRESH_TOKEN_SECRET, (err, payload) => {
         delete payload.iat
         delete payload.exp
       
-        const token = jwt.sign(payload, env.ACCESS_TOKEN_SECRET, { expiresIn: '15m' })
+        const token = jsonwebtoken.sign(payload, env.ACCESS_TOKEN_SECRET, { expiresIn: '15m' })
         res.json({ token, user: payload })
       })
     }

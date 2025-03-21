@@ -1,9 +1,13 @@
-require('dotenv').config()
-const mongoose = require('mongoose')
+import dotenv from 'dotenv'
+import mongoose from 'mongoose'
 const schema = mongoose.Schema
-module.exports.env = process.env
+const env = process.env
+const _env = env
+export { _env as env }
 
-module.exports.createStudentId = function(db){
+dotenv.config()
+
+export function createStudentId(db){
   const prefix = 'sfc'
   const year = new Date().getFullYear()
   let newStudent = false
@@ -82,15 +86,18 @@ const partnerSchema = new schema({
   partnerId: String
 })
 
-module.exports.certificateModel = mongoose.model('certificate', certificateSchema)
-module.exports.userModel = mongoose.model('user', userSchema)
-module.exports.courseModel = mongoose.model('course', courseSchema)
-module.exports.modulesModel = mongoose.model('module', moduleSchema)
-module.exports.addressModel = mongoose.model('address', addressShema)
-module.exports.partnerModel = mongoose.model('partner', partnerSchema)
-// mongoose.connect(process.env.DATABASE)
-// mongoose.connection.once('open', databaseConnection)
-        // .on('error', databaseError)
+export const certificateModel = mongoose.model('certificate', certificateSchema)
+export const userModel = mongoose.model('user', userSchema)
+export const courseModel = mongoose.model('course', courseSchema)
+export const modulesModel = mongoose.model('module', moduleSchema)
+export const addressModel = mongoose.model('address', addressShema)
+export const partnerModel = mongoose.model('partner', partnerSchema)
+
+if(env.PROD_ENV === 'PROD'){
+  connect(process.env.DATABASE)
+  connection.once('open', databaseConnection)
+          .on('error', databaseError)
+}
 
 function databaseConnection(){
   console.log('connected to database')

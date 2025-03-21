@@ -1,12 +1,10 @@
-const router = require('express').Router()
-const auth = require('./src/Authentication/auth')
-const { getCourses } = require('./src/Controller/getCourse')
-const { courseModel } = require('./core')
+import { Router } from 'express'
+import auth from './src/Authentication/auth.js'
+import { getCourses } from './src/Controller/getCourse.js'
+
+const router = Router()
 
 router.use(auth)
-router.post('/courses', async function(_, res){
-  const courses = await courseModel.find({})
-  return res.json(courses)
-})
+router.post('/courses', getCourses)
 
-module.exports = router
+export default router
