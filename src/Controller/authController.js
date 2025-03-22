@@ -58,7 +58,7 @@ export async function loginController(req, res){
     delete newUser.password
     const token = jsonwebtoken.sign(newUser, env.ACCESS_TOKEN_SECRET, {expiresIn: '15m' })
     const refreshToken = jsonwebtoken.sign(newUser, env.REFRESH_TOKEN_SECRET, {expiresIn: '15d' })
-    const maxAge = 15 * 24 * 60 * 60 * 1000
+    const maxAge = 60 * 60 * 1000
     res.cookie('authorizationCookie', refreshToken, { signed: true, httpOnly: true, secure: false, maxAge })
     return res.json({ status: 200, msg: 'Signed in', token, newUser })
   } catch(err){
@@ -75,11 +75,14 @@ export async function refreshController(req, res){
   if(!cookie) return res.json({ token: '' })
     try{
       jsonwebtoken.verify(cookie, env.REFRESH_TOKEN_SECRET, (err, payload) => {
+        if(err) return res.json({ token: ''})
         delete payload.iat
         delete payload.exp
       
         const token = jsonwebtoken.sign(payload, env.ACCESS_TOKEN_SECRET, { expiresIn: '15m' })
-        res.json({ token, user: payload })
+        const refreshToken = jsonwebtoken.sign(payload, env.REFRESH_TOKEN_SECRET, { expiresIn: '1h' })
+        res.cookie('authorizationCookie', refreshToken, { signed: true, maxAge: 60 * 60 * 1000 })
+        return res.json({ token, user: payload })
       })
     }
       catch(err) {
