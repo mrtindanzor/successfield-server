@@ -80,14 +80,18 @@ export async function loginController(req, res){
 } 
 
 export async function refreshController(req, res){
+  console.log(1)
   const cookie = req.signedCookies.authorizationCookie
+  console.log(cookie)
+  console.log('past 1')
   if(!cookie) return res.json({ token: '' })
     try{
       jsonwebtoken.verify(cookie, env.REFRESH_TOKEN_SECRET, (err, payload) => {
         if(err) return res.json({ token: ''})
+          console.log(payload)
         delete payload.iat
         delete payload.exp
-      
+        console.log(payload)
         const token = jsonwebtoken.sign(payload, env.ACCESS_TOKEN_SECRET, { expiresIn: '15m' })
         const refreshToken = jsonwebtoken.sign(payload, env.REFRESH_TOKEN_SECRET, { expiresIn: '1h' })
         res.cookie('authorizationCookie', refreshToken, { signed: true, maxAge: 60 * 60 * 1000, secure: env.PROD_ENV === 'PROD' ? true : false, maxAge, sameSite: 'none'  })
