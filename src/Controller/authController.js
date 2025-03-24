@@ -16,7 +16,7 @@ export async function registerController(req, res){
   if(password !== cpassword) return res.json({ status: 403, msg: 'Passwords do not match' })
   
   firstname = firstname.trim().toLowerCase()
-  middlename = firstname.trim().toLowerCase()
+  middlename = middlename.trim().toLowerCase()
   surname = surname.trim().toLowerCase()
   email = email.trim().toLowerCase()
 
@@ -59,20 +59,23 @@ export async function loginController(req, res){
   password = password.trim()
 
   try{
-    const user = env.PROD_ENV === 'PROD' ? await userModel.findOne({ email }) : usersDb.find(student => student.email === email)
-    if(!user) return res.json({ status: 404, msg: 'Invalid credentials' })
-    const isPasswordMatch = await bcrypt.compare(password, user.password)
+    const findUser = env.PROD_ENV === 'PROD' ? await userModel.findOne({ email }) : usersDb.find(student => student.email === email)
+    if(!findUser) return res.json({ status: 404, msg: 'Invalid credentials' })
+    const isPasswordMatch = await bcrypt.compare(password, findUser.password)
     if(!isPasswordMatch) return res.json({ status: 402, msg: 'Incorrect password' })
-    const newUser = { ...user._doc }
-    delete newUser.password
-    const payload = {...newUser}
-    const token = jsonwebtoken.sign(payload, env.ACCESS_TOKEN_SECRET, {expiresIn: '15m' })
-    const refreshToken = jsonwebtoken.sign(payload, env.REFRESH_TOKEN_SECRET, {expiresIn: '1h' })
-    res.cookie('authorizationCookie', refreshToken, { signed: true, httpOnly: true, secure: env.PROD_ENV === 'PROD', maxAge: 60 * 60 * 1000, sameSite: 'none' })
+    const user = env.PROD_ENV === 'PROD' ? { ...findUser._doc } : findUser
+    delete user.password
+    const token = jsonwebtoken.sign(user, env.ACCESS_TOKEN_SECRET, {expiresIn: '15m' })
+    const refreshToken = jsonwebtoken.sign(user, env.REFRESH_TOKEN_SECRET, {expiresIn: '1h' })
+
     if(env.PROD_ENV === 'PROD'){
-      return res.json({ status: 200, msg: 'Signed in, redirecting you to homepage.', token, newUser: payload })
+      res.cookie('authorizationCookie', refreshToken, { signed: true, httpOnly: true, secure: env.PROD_ENV === 'PROD', maxAge: 60 * 60 * 1000, sameSite: 'none' })
     }
-    return res.json({ status: 200, msg: 'Signed in, redirecting you to homepage.', token, newUser })  
+      else {
+      res.cookie('authorizationCookie', refreshToken, { signed: true, httpOnly: true, secure: false, maxAge: 60 * 60 * 1000 })
+    }
+
+    return res.json({ status: 200, msg: 'Signed in, redirecting you to homepage.', token, newUser: user })  
   } catch(err){
     return res.json({ status: 500, msg: err.msg ?? 'An error was encoutered' })
   }
@@ -82,14 +85,19 @@ export async function refreshController(req, res){
   const cookie = req.signedCookies.authorizationCookie
   if(!cookie) return res.json({ token: '' })
     try{
-      jsonwebtoken.verify(cookie, env.REFRESH_TOKEN_SECRET, (err, payload) => {
+      jsonwebtoken.verify(cookie, env.REFRESH_TOKEN_SECRET, (err, user) => {
         if(err) return res.json({ token: ''})
-        delete payload.iat
-        delete payload.exp
-        const token = jsonwebtoken.sign(payload, env.ACCESS_TOKEN_SECRET, { expiresIn: '15m' })
-        const refreshToken = jsonwebtoken.sign(payload, env.REFRESH_TOKEN_SECRET, { expiresIn: '1h' })
-        res.cookie('authorizationCookie', refreshToken, { signed: true, httpOnly: true, secure: env.PROD_ENV === 'PROD', maxAge: 60 * 60 * 1000, sameSite: 'none' })
-        return res.json({ token, user: payload })
+        delete user.iat
+        delete user.exp
+        const token = jsonwebtoken.sign(user, env.ACCESS_TOKEN_SECRET, { expiresIn: '15m' })
+        const refreshToken = jsonwebtoken.sign(user, env.REFRESH_TOKEN_SECRET, { expiresIn: '1h' })
+        if(env.PROD_ENV === 'PROD'){
+          res.cookie('authorizationCookie', refreshToken, { signed: true, httpOnly: true, secure: env.PROD_ENV === 'PROD', maxAge: 60 * 60 * 1000, sameSite: 'none' })
+        }
+          else{
+          res.cookie('authorizationCookie', refreshToken, { signed: true, httpOnly: true, secure: false, maxAge: 60 * 60 * 1000 })
+        }
+        return res.json({ token, user })
       })
     }
       catch(err) {
