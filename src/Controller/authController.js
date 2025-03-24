@@ -63,9 +63,9 @@ export async function loginController(req, res){
     if(!user) return res.json({ status: 404, msg: 'Invalid credentials' })
     const isPasswordMatch = await bcrypt.compare(password, user.password)
     if(!isPasswordMatch) return res.json({ status: 402, msg: 'Incorrect password' })
-    const newUser = { ...user }
-    delete newUser._doc.password
-    const payload = {...newUser._doc}
+    const newUser = { ...user._doc }
+    delete newUser.password
+    const payload = {...newUser}
     const token = jsonwebtoken.sign(payload, env.ACCESS_TOKEN_SECRET, {expiresIn: '15m' })
     const refreshToken = jsonwebtoken.sign(payload, env.REFRESH_TOKEN_SECRET, {expiresIn: '15d' })
     const maxAge = 60 * 60 * 1000
@@ -80,10 +80,7 @@ export async function loginController(req, res){
 } 
 
 export async function refreshController(req, res){
-  console.log(1)
   const cookie = req.signedCookies.authorizationCookie
-  console.log(cookie)
-  console.log('past 1')
   if(!cookie) return res.json({ token: '' })
     try{
       jsonwebtoken.verify(cookie, env.REFRESH_TOKEN_SECRET, (err, payload) => {
@@ -93,11 +90,16 @@ export async function refreshController(req, res){
         console.log(payload)
         const token = jsonwebtoken.sign(payload, env.ACCESS_TOKEN_SECRET, { expiresIn: '15m' })
         const refreshToken = jsonwebtoken.sign(payload, env.REFRESH_TOKEN_SECRET, { expiresIn: '1h' })
+        console.log('after jwt')
         res.cookie('authorizationCookie', refreshToken, { signed: true, maxAge: 60 * 60 * 1000, secure: env.PROD_ENV === 'PROD' ? true : false, maxAge, sameSite: 'none'  })
+        console.log('after cookie')
+        console.log(token)
+        console.log('after token')
+        console.log(payload)
         return res.json({ token, user: payload })
       })
     }
       catch(err) {
-        return res.json({  token: ' ' })
+        return res.json({  token: '' })
     }
 }
