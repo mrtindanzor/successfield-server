@@ -92,11 +92,10 @@ export const addressModel = mongoose.model('address', addressShema)
 export const partnerModel = mongoose.model('partner', partnerSchema)
 
 if(env.PROD_ENV === 'PROD'){
-  connect(process.env.DATABASE)
-  connection.once('open', databaseConnection)
-          .on('error', databaseError)
+  mongoose.connect(process.env.DATABASE)
+  mongoose.connection.once('open', databaseConnection).on('error', databaseError)
 
-  setInvterval(() => fetch(env.SERVER_URI), 14 * 60 * 1000)
+  setInterval(() => fetch(env.LIVE_SERVER_URI).then(() => console.log('fetched')), 14 * 60 * 1000)
 }
 
 function databaseConnection(){
