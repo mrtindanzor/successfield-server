@@ -64,9 +64,10 @@ export async function loginController(req, res){
     const isPasswordMatch = await bcrypt.compare(password, user.password)
     if(!isPasswordMatch) return res.json({ status: 402, msg: 'Incorrect password' })
     const newUser = { ...user }
-    delete newUser.password
-    const token = jsonwebtoken.sign(newUser, env.ACCESS_TOKEN_SECRET, {expiresIn: '15m' })
-    const refreshToken = jsonwebtoken.sign(newUser, env.REFRESH_TOKEN_SECRET, {expiresIn: '15d' })
+    delete newUser._doc.password
+    const payload = {...newUser}
+    const token = jsonwebtoken.sign(payload, env.ACCESS_TOKEN_SECRET, {expiresIn: '15m' })
+    const refreshToken = jsonwebtoken.sign(payload, env.REFRESH_TOKEN_SECRET, {expiresIn: '15d' })
     const maxAge = 60 * 60 * 1000
     res.cookie('authorizationCookie', refreshToken, { signed: true, httpOnly: true, secure: env.PROD_ENV === 'PROD' ? true : false, maxAge, sameSite: 'none' })
     if(env.PROD_ENV === 'PROD'){
