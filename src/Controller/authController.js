@@ -67,9 +67,8 @@ export async function loginController(req, res){
     delete newUser.password
     const payload = {...newUser}
     const token = jsonwebtoken.sign(payload, env.ACCESS_TOKEN_SECRET, {expiresIn: '15m' })
-    const refreshToken = jsonwebtoken.sign(payload, env.REFRESH_TOKEN_SECRET, {expiresIn: '15d' })
-    const maxAge = 60 * 60 * 1000
-    res.cookie('authorizationCookie', refreshToken, { signed: true, httpOnly: true, secure: env.PROD_ENV === 'PROD' ? true : false, maxAge, sameSite: 'none' })
+    const refreshToken = jsonwebtoken.sign(payload, env.REFRESH_TOKEN_SECRET, {expiresIn: '1h' })
+    res.cookie('authorizationCookie', refreshToken, { signed: true, httpOnly: true, secure: env.PROD_ENV === 'PROD', maxAge: 60 * 60 * 1000, sameSite: 'none' })
     if(env.PROD_ENV === 'PROD'){
       return res.json({ status: 200, msg: 'Signed in, redirecting you to homepage.', token, newUser: payload })
     }
@@ -87,19 +86,14 @@ export async function refreshController(req, res){
         if(err) return res.json({ token: ''})
         delete payload.iat
         delete payload.exp
-        console.log(payload)
         const token = jsonwebtoken.sign(payload, env.ACCESS_TOKEN_SECRET, { expiresIn: '15m' })
         const refreshToken = jsonwebtoken.sign(payload, env.REFRESH_TOKEN_SECRET, { expiresIn: '1h' })
-        console.log('after jwt')
-        res.cookie('authorizationCookie', refreshToken, { signed: true, maxAge: 60 * 60 * 1000, secure: env.PROD_ENV === 'PROD' ? true : false, maxAge, sameSite: 'none'  })
-        console.log('after cookie')
-        console.log(token)
-        console.log('after token')
-        console.log(payload)
+        res.cookie('authorizationCookie', refreshToken, { signed: true, httpOnly: true, secure: env.PROD_ENV === 'PROD', maxAge: 60 * 60 * 1000, sameSite: 'none' })
         return res.json({ token, user: payload })
       })
     }
       catch(err) {
+        console.log(err.message)
         return res.json({  token: '' })
     }
 }
