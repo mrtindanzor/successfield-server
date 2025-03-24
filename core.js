@@ -1,9 +1,7 @@
 import dotenv from 'dotenv'
 import mongoose from 'mongoose'
 const schema = mongoose.Schema
-const env = process.env
-const _env = env
-export { _env as env }
+export const env = process.env
 
 dotenv.config()
 
@@ -97,6 +95,8 @@ if(env.PROD_ENV === 'PROD'){
   connect(process.env.DATABASE)
   connection.once('open', databaseConnection)
           .on('error', databaseError)
+
+  setInvterval(() => fetch(env.SERVER_URI), 14 * 60 * 1000)
 }
 
 function databaseConnection(){

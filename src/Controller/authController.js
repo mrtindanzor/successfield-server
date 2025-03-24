@@ -1,6 +1,6 @@
 import jsonwebtoken from 'jsonwebtoken';
 import bcrypt from 'bcrypt';
-import { createStudentId, env } from './../../core.js';
+import { createStudentId, env, userModel } from './../../core.js';
 const stringPattern = /^[\w\s.,-]+$/
 const emailPattern = /^[^@\s]+@[^@\s]+\.[^@\s]+$/
 
@@ -26,16 +26,26 @@ export async function registerController(req, res){
   if(!email.match(emailPattern)) return res.json({ status: 403, msg: 'Email contains invalid characters' })
 
   try {
+    if(env.PROD_ENV === 'PROD'){
+      const userExists = await userModel.findOne({ email }) 
+      if(userExists) return res.json({ status: 403, msg: 'A user with this email address already exists.' })
+    }
     const hashedPassword = await bcrypt.hash(password, 10)
     const studentNumber = await createStudentId(usersDb).toLowerCase()
     const studentDetails = { firstname, middlename, surname, email, password: hashedPassword, studentNumber }
+    if(env.PROD_ENV === 'PROD'){
+      const newUser = new userModel(studentDetails)
+      newUser.save()
+        .then(() => {
+          if(!newUser.isnew){
+            return res.json({ status: 201, msg: 'Sign up complete, redirecting to log in page.' })
+          }
+        })
+    }
     usersDb.push(studentDetails)
     return res.json({ status: 201, msg: 'Sign up complete, proceed to log in.' })
   } catch (err){
-    console.log(err.message)
     return res.json({ status: 500, msg: err.message })
-  } finally{
-    console.log(usersDb)
   }
 }
 
@@ -49,9 +59,8 @@ export async function loginController(req, res){
   password = password.trim()
 
   try{
-    const user = await usersDb.find(student => student.email === email)
+    const user = env.PROD_ENV === 'PROD' ? await userModel.findOne(student => student.email === email) : usersDb.find(student => student.email === email)
     if(!user) return res.json({ status: 404, msg: 'Invalid credentials' })
-      console.log(user)
     const isPasswordMatch = await bcrypt.compare(password, user.password)
     if(!isPasswordMatch) return res.json({ status: 402, msg: 'Incorrect password' })
     const newUser = { ...user }
@@ -60,14 +69,10 @@ export async function loginController(req, res){
     const refreshToken = jsonwebtoken.sign(newUser, env.REFRESH_TOKEN_SECRET, {expiresIn: '15d' })
     const maxAge = 60 * 60 * 1000
     res.cookie('authorizationCookie', refreshToken, { signed: true, httpOnly: true, secure: false, maxAge })
-    return res.json({ status: 200, msg: 'Signed in', token, newUser })
+    return res.json({ status: 200, msg: 'Signed in, redirecting you to homepage.', token, newUser })
   } catch(err){
-    console.log(err.message)
     return res.json({ status: 500, msg: err.msg ?? 'An error was encoutered' })
-  } finally{
-    console.log(usersDb)
   }
-  
 } 
 
 export async function refreshController(req, res){

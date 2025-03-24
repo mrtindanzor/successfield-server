@@ -5,11 +5,11 @@ import express from 'express'
 import router from './routers.js'
 
 const server = express()
-const PORT = env.PORT
+const PORT = process.env.PORT || 8000
 
 server.set({ urlEncoded: true })
 server.use(cors({
-  origin: env.FRONTEND_SERVER,
+  origin: env.PROD_ENV === 'PROD' ? env.lIVE_FRONTEND_SERVER : env.FRONTEND_SERVER,
   credentials: true
 }))
 server.use(cookieParser(env.COOKIE_SECRET_KEY))
