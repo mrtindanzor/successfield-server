@@ -59,7 +59,7 @@ export async function loginController(req, res){
   password = password.trim()
 
   try{
-    const user = env.PROD_ENV === 'PROD' ? await userModel.findOne(student => student.email === email) : usersDb.find(student => student.email === email)
+    const user = env.PROD_ENV === 'PROD' ? await userModel.findOne({ email }) : usersDb.find(student => student.email === email)
     if(!user) return res.json({ status: 404, msg: 'Invalid credentials' })
     const isPasswordMatch = await bcrypt.compare(password, user.password)
     if(!isPasswordMatch) return res.json({ status: 402, msg: 'Incorrect password' })
