@@ -89,7 +89,7 @@ export async function refreshController(req, res){
       
         const token = jsonwebtoken.sign(payload, env.ACCESS_TOKEN_SECRET, { expiresIn: '15m' })
         const refreshToken = jsonwebtoken.sign(payload, env.REFRESH_TOKEN_SECRET, { expiresIn: '1h' })
-        res.cookie('authorizationCookie', refreshToken, { signed: true, maxAge: 60 * 60 * 1000 })
+        res.cookie('authorizationCookie', refreshToken, { signed: true, maxAge: 60 * 60 * 1000, secure: env.PROD_ENV === 'PROD' ? true : false, maxAge, sameSite: 'none'  })
         return res.json({ token, user: payload })
       })
     }
