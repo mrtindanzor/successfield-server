@@ -68,7 +68,7 @@ export async function loginController(req, res){
     const token = jsonwebtoken.sign(newUser, env.ACCESS_TOKEN_SECRET, {expiresIn: '15m' })
     const refreshToken = jsonwebtoken.sign(newUser, env.REFRESH_TOKEN_SECRET, {expiresIn: '15d' })
     const maxAge = 60 * 60 * 1000
-    res.cookie('authorizationCookie', refreshToken, { signed: true, httpOnly: true, secure: env.PROD_ENV === 'PROD' ? true : false, maxAge })
+    res.cookie('authorizationCookie', refreshToken, { signed: true, httpOnly: true, secure: env.PROD_ENV === 'PROD' ? true : false, maxAge, sameSite: 'none' })
     if(env.PROD_ENV === 'PROD'){
       return res.json({ status: 200, msg: 'Signed in, redirecting you to homepage.', token, newUser: {...newUser._doc} })
     }
