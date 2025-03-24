@@ -60,6 +60,7 @@ export async function loginController(req, res){
 
   try{
     const user = env.PROD_ENV === 'PROD' ? await userModel.findOne({ email }) : usersDb.find(student => student.email === email)
+    console.log(user)
     if(!user) return res.json({ status: 404, msg: 'Invalid credentials' })
     const isPasswordMatch = await bcrypt.compare(password, user.password)
     if(!isPasswordMatch) return res.json({ status: 402, msg: 'Incorrect password' })
@@ -69,7 +70,10 @@ export async function loginController(req, res){
     const refreshToken = jsonwebtoken.sign(newUser, env.REFRESH_TOKEN_SECRET, {expiresIn: '15d' })
     const maxAge = 60 * 60 * 1000
     res.cookie('authorizationCookie', refreshToken, { signed: true, httpOnly: true, secure: false, maxAge })
-    return res.json({ status: 200, msg: 'Signed in, redirecting you to homepage.', token, newUser })
+    if(env.PROD_ENV === 'PROD'){
+      return res.json({ status: 200, msg: 'Signed in, redirecting you to homepage.', token, newUser: {...newUser._doc} })
+    }
+    return res.json({ status: 200, msg: 'Signed in, redirecting you to homepage.', token, newUser })  
   } catch(err){
     return res.json({ status: 500, msg: err.msg ?? 'An error was encoutered' })
   }
