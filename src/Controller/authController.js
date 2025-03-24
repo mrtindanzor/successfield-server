@@ -65,13 +65,13 @@ export async function loginController(req, res){
     if(!isPasswordMatch) return res.json({ status: 402, msg: 'Incorrect password' })
     const newUser = { ...user }
     delete newUser._doc.password
-    const payload = {...newUser}
+    const payload = {...newUser._doc}
     const token = jsonwebtoken.sign(payload, env.ACCESS_TOKEN_SECRET, {expiresIn: '15m' })
     const refreshToken = jsonwebtoken.sign(payload, env.REFRESH_TOKEN_SECRET, {expiresIn: '15d' })
     const maxAge = 60 * 60 * 1000
     res.cookie('authorizationCookie', refreshToken, { signed: true, httpOnly: true, secure: env.PROD_ENV === 'PROD' ? true : false, maxAge, sameSite: 'none' })
     if(env.PROD_ENV === 'PROD'){
-      return res.json({ status: 200, msg: 'Signed in, redirecting you to homepage.', token, newUser: {...newUser._doc} })
+      return res.json({ status: 200, msg: 'Signed in, redirecting you to homepage.', token, newUser: payload })
     }
     return res.json({ status: 200, msg: 'Signed in, redirecting you to homepage.', token, newUser })  
   } catch(err){
@@ -88,10 +88,8 @@ export async function refreshController(req, res){
     try{
       jsonwebtoken.verify(cookie, env.REFRESH_TOKEN_SECRET, (err, payload) => {
         if(err) return res.json({ token: ''})
-          console.log(payload)
         delete payload.iat
         delete payload.exp
-        console.log(payload)
         const token = jsonwebtoken.sign(payload, env.ACCESS_TOKEN_SECRET, { expiresIn: '15m' })
         const refreshToken = jsonwebtoken.sign(payload, env.REFRESH_TOKEN_SECRET, { expiresIn: '1h' })
         res.cookie('authorizationCookie', refreshToken, { signed: true, maxAge: 60 * 60 * 1000, secure: env.PROD_ENV === 'PROD' ? true : false, maxAge, sameSite: 'none'  })
