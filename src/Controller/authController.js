@@ -53,10 +53,9 @@ export async function loginController(req, res){
   let { email, password } = req.body
   if(!email) return res.json({ status: 403, msg: 'Enter a valid email address' })
   if(!password) return res.json({ status: 403, msg: 'Enter password' })
-  if(!emailPattern.test(email)) return res.json({ status: 403, msg: 'Enter a valid email address' })
-
   email = email.toLowerCase().trim()
   password = password.trim()
+  if(!emailPattern.test(email)) return res.json({ status: 403, msg: 'Enter a valid email address' })
 
   try{
     const findUser = env.PROD_ENV === 'PROD' ? await userModel.findOne({ email }) : usersDb.find(student => student.email === email)
@@ -69,20 +68,20 @@ export async function loginController(req, res){
     const refreshToken = jsonwebtoken.sign(user, env.REFRESH_TOKEN_SECRET, {expiresIn: '1h' })
 
     if(env.PROD_ENV === 'PROD'){
-      res.cookie('authorizationCookie', refreshToken, { signed: true, httpOnly: true, secure: env.PROD_ENV === 'PROD', maxAge: 60 * 60 * 1000, sameSite: 'none' })
+      res.cookie('ac', refreshToken, { signed: true, httpOnly: true, secure: env.PROD_ENV === 'PROD', maxAge: 60 * 60 * 1000, sameSite: 'none' })
     }
       else {
-      res.cookie('authorizationCookie', refreshToken, { signed: true, httpOnly: true, secure: false, maxAge: 60 * 60 * 1000 })
+      res.cookie('ac', refreshToken, { signed: true, httpOnly: true, secure: false, maxAge: 60 * 60 * 1000 })
     }
 
-    return res.json({ status: 200, msg: 'Signed in, redirecting you to homepage.', token, newUser: user })  
+    return res.json({ status: 200, msg: 'Signed in, redirecting you to homepage.', token })  
   } catch(err){
     return res.json({ status: 500, msg: err.msg ?? 'An error was encoutered' })
   }
 } 
 
 export async function refreshController(req, res){
-  const cookie = req.signedCookies.authorizationCookie
+  const cookie = req.signedCookies.ac
   if(!cookie) return res.json({ token: '' })
     try{
       jsonwebtoken.verify(cookie, env.REFRESH_TOKEN_SECRET, (err, user) => {
@@ -92,12 +91,12 @@ export async function refreshController(req, res){
         const token = jsonwebtoken.sign(user, env.ACCESS_TOKEN_SECRET, { expiresIn: '15m' })
         const refreshToken = jsonwebtoken.sign(user, env.REFRESH_TOKEN_SECRET, { expiresIn: '1h' })
         if(env.PROD_ENV === 'PROD'){
-          res.cookie('authorizationCookie', refreshToken, { signed: true, httpOnly: true, secure: env.PROD_ENV === 'PROD', maxAge: 60 * 60 * 1000, sameSite: 'none' })
+          res.cookie('ac', refreshToken, { signed: true, httpOnly: true, secure: env.PROD_ENV === 'PROD', maxAge: 60 * 60 * 1000, sameSite: 'none' })
         }
           else{
-          res.cookie('authorizationCookie', refreshToken, { signed: true, httpOnly: true, secure: false, maxAge: 60 * 60 * 1000 })
+          res.cookie('ac', refreshToken, { signed: true, httpOnly: true, secure: false, maxAge: 60 * 60 * 1000 })
         }
-        return res.json({ token, user })
+        return res.json({ token })
       })
     }
       catch(err) {
