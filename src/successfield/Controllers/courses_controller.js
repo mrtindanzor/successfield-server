@@ -1,6 +1,8 @@
-import { courseModel } from './../../core.js'
+import { courseModel, env } from './../../core.js'
+import jsonwebtoken from 'jsonwebtoken'
 
 export default async function courses_controller(_, res){
-  const courses = await courseModel.find({ })
+  const fetchedCourses = await courseModel.find({ })
+  const courses = jsonwebtoken.sign({ ...fetchedCourses }, env.ACCESS_TOKEN_SECRET )
   return res.json({ courses })
 }
