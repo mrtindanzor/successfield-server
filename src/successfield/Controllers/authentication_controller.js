@@ -1,10 +1,8 @@
 import jsonwebtoken from 'jsonwebtoken';
 import bcrypt from 'bcrypt';
-import { createStudentId, env, userModel } from './../../core.js';
+import { createStudentId, env, userModel } from '../../core.js';
 const stringPattern = /^[\w\s.,-]+$/
 const emailPattern = /^[^@\s]+@[^@\s]+\.[^@\s]+$/
-
-const usersDb = []
 
 export async function registerController(req, res){
   let { firstname, middlename, surname, email, password, cpassword} = req.body
@@ -26,24 +24,19 @@ export async function registerController(req, res){
   if(!email.match(emailPattern)) return res.json({ status: 403, msg: 'Email contains invalid characters' })
 
   try {
-    if(env.PROD_ENV === 'PROD'){
-      const userExists = await userModel.findOne({ email }) 
-      if(userExists) return res.json({ status: 403, msg: 'A user with this email address already exists.' })
-    }
+    const userExists = await userModel.findOne({ email }) 
+    if(userExists) return res.json({ status: 403, msg: 'A user with this email address already exists.' })
+    const users = await userModel.find({ })
     const hashedPassword = await bcrypt.hash(password, 10)
-    const studentNumber = await createStudentId(usersDb).toLowerCase()
+    const studentNumber = await createStudentId(users).toLowerCase()
     const studentDetails = { firstname, middlename, surname, email, password: hashedPassword, studentNumber }
-    if(env.PROD_ENV === 'PROD'){
-      const newUser = new userModel(studentDetails)
-      newUser.save()
-        .then(() => {
-          if(!newUser.isnew){
-            return res.json({ status: 201, msg: 'Sign up complete, redirecting to log in page.' })
-          }
-        })
-    }
-    usersDb.push(studentDetails)
-    return res.json({ status: 201, msg: 'Sign up complete, proceed to log in.' })
+    const newUser = new userModel(studentDetails)
+    newUser.save()
+      .then(() => {
+        if(!newUser.isnew){
+          return res.json({ status: 201, msg: 'Sign up complete, redirecting to log in page.' })
+        }
+      })
   } catch (err){
     return res.json({ status: 500, msg: err.message })
   }
@@ -58,11 +51,11 @@ export async function loginController(req, res){
   if(!emailPattern.test(email)) return res.json({ status: 403, msg: 'Enter a valid email address' })
 
   try{
-    const findUser = env.PROD_ENV === 'PROD' ? await userModel.findOne({ email }) : usersDb.find(student => student.email === email)
+    const findUser = await userModel.findOne({ email })
     if(!findUser) return res.json({ status: 404, msg: 'Invalid credentials' })
     const isPasswordMatch = await bcrypt.compare(password, findUser.password)
     if(!isPasswordMatch) return res.json({ status: 402, msg: 'Incorrect password' })
-    const user = env.PROD_ENV === 'PROD' ? { ...findUser._doc } : findUser
+    const user = { ...findUser._doc }
     delete user.password
     const token = jsonwebtoken.sign(user, env.ACCESS_TOKEN_SECRET, {expiresIn: '15m' })
     const refreshToken = jsonwebtoken.sign(user, env.REFRESH_TOKEN_SECRET, {expiresIn: '1h' })

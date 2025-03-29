@@ -1,8 +1,8 @@
-import { env } from './core.js'
+import { env } from './src/core.js'
 import cors from 'cors'
 import cookieParser from 'cookie-parser'
 import express from 'express'
-import router from './routers.js'
+import successfield_router from './src/successfield/Views/sucessfieldroute.js'
 
 const server = express()
 const PORT = process.env.PORT || 8000
@@ -14,6 +14,6 @@ server.use(cors({
 }))
 server.use(cookieParser(env.COOKIE_SECRET_KEY))
 server.use(express.json())
-server.use(router)
+server.use('/successfield', successfield_router)
 
 server.listen(PORT, function() { console.log('Server running on port', PORT)})

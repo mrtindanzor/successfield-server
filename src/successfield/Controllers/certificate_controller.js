@@ -1,4 +1,4 @@
-import { certificateModel } from './../../core.js'
+import { certificateModel } from '../../core.js'
 
 export default async function verify_controller(req, res){
   let { certificateCode } = req.body
