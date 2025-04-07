@@ -54,12 +54,18 @@ const userSchema = new schema({
   phone: Number,
   address: addressShema,
   studentNumber: String,
-  admin: Boolean,
+  programme: String,
+  birthDate: String,
+  idDocument: { photo: String }, 
+  passportPhoto: { photo: String },
+  educationLevel: String,
   date: String,
   verificationCode: String,
   isnew: Boolean,
+  newApplication: Boolean,
   verified: Boolean,
   namechanged: Boolean,
+  admin: Boolean,
   courses: [{course: String, module: Number, moduleName: String}]
 })
 

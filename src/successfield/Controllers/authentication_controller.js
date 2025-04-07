@@ -5,9 +5,20 @@ const stringPattern = /^[\w\s.,-]+$/
 const emailPattern = /^[^@\s]+@[^@\s]+\.[^@\s]+$/
 
 export async function registerController(req, res){
-  let { firstname, middlename, surname, email, password, cpassword} = req.body
+  const idDocuments = req.files.idDocument?.[0]
+  const passportPhotos = req.files.passportPhoto?.[0]
+  console.log(req.files)
+  console.log(idDocuments)
+  console.log(passportPhotos)
+  return
+  let {  programme, firstname, middlename, surname, birthDate, address, idDocument, passportPhoto, phoneNumber, email, educationLevel, contact, password, cpassword } = req.body
+  if(contact) return res.json({ status: 403, msg: 'Registration could not be completed at the moment' })
+  if(!programme) return res.json({ status: 403, msg: 'Select a programme' })
   if(!firstname) return res.json({ status: 403, msg: 'Enter your firstname' })
   if(!surname) return res.json({ status: 403, msg: 'Enter your surname' })
+  if(!address) return res.json({ status: 403, msg: 'Enter your address' })
+  if(!phoneNumber) return res.json({ status: 403, msg: 'Enter your contact number' })
+  if(!educationLevel) return res.json({ status: 403, msg: 'Select your highest level of education' })
   if(!email) return res.json({ status: 403, msg: 'Enter your email' })
   if(!password) return res.json({ status: 403, msg: 'Enter a password' })
   if(!cpassword) return res.json({ status: 403, msg: 'Confirm your new password' })
@@ -28,13 +39,13 @@ export async function registerController(req, res){
     if(userExists) return res.json({ status: 403, msg: 'A user with this email address already exists.' })
     const users = await userModel.find({ })
     const hashedPassword = await bcrypt.hash(password, 10)
-    const studentNumber = await createStudentId(users).toLowerCase()
-    const studentDetails = { firstname, middlename, surname, email, password: hashedPassword, studentNumber }
+    const studentNumber = createStudentId(users).toLowerCase()
+    const studentDetails = { programme, firstname, middlename, surname, birthDate, address, idDocument, passportPhoto, phone: phoneNumber, email, educationLevel, password: hashedPassword, studentNumber, newApplication: true }
     const newUser = new userModel(studentDetails)
     newUser.save()
       .then(() => {
         if(!newUser.isnew){
-          return res.json({ status: 201, msg: 'Sign up complete, redirecting to log in page.' })
+          return res.json({ status: 201, msg: 'Application complete, wait for registrar confirmation.' })
         }
       })
   } catch (err){
