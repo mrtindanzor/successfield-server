@@ -42,6 +42,11 @@ const addressShema = new schema({
 const moduleSchema = new schema({
   index: Number,
   title: String,
+  outline: String,
+  objectives: [{ objective: String }],
+  topics: [{ topic: String }],
+  notes: [{ note: String }],
+  questions: [{ question: String, ans: String, options: { a: String, b: String, c: String, d: String } }],
   link: String
 })
 
