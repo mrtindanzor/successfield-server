@@ -40,12 +40,13 @@ const addressShema = new schema({
 })
 
 const moduleSchema = new schema({
+  courseCode: String,
   index: Number,
   title: String,
   outline: String,
-  objectives: [{ objective: String }],
-  topics: [{ topic: String }],
-  notes: [{ note: String }],
+  objectives: [ String ],
+  topics: [ String ],
+  notes: [ String ],
   questions: [{ question: String, ans: String, options: { a: String, b: String, c: String, d: String } }],
   link: String
 })
@@ -88,6 +89,31 @@ const courseSchema = new schema({
   fee: String
 })
 
+const coursesSchema = new schema({
+  course: String,
+  courseCode: String,
+  overview: String,
+  duration: String,
+  availability: String,
+  certificate: String,
+  fee: String
+})
+
+const benefitsSchema = new schema({
+  courseCode: String,
+  benefits: [ String ]
+})
+
+const outlinesSchema = new schema({
+  courseCode: String,
+  outlines: [ String ]
+})
+
+const objectivesSchema = new schema({
+  courseCode: String,
+  objectives: [ String ]
+})
+
 const partnerSchema = new schema({
   name: String,
   location: String,
@@ -98,9 +124,14 @@ const partnerSchema = new schema({
 export const certificateModel = mongoose.model('certificate', certificateSchema)
 export const userModel = mongoose.model('user', userSchema)
 export const courseModel = mongoose.model('course', courseSchema)
-export const modulesModel = mongoose.model('module', moduleSchema)
 export const addressModel = mongoose.model('address', addressShema)
 export const partnerModel = mongoose.model('partner', partnerSchema)
+
+export const coursesModel = mongoose.model('newcourse', coursesSchema)
+export const modulesModel = mongoose.model('module', moduleSchema)
+export const objectivesModel = mongoose.model('objective', objectivesSchema)
+export const outlinesModel = mongoose.model('outline', outlinesSchema)
+export const benefitsModel = mongoose.model('benefit', benefitsSchema)
 
 mongoose.connect( env.PROD_ENV === 'PROD' ? env.DATABASE : env.DEV_DATABASE )
 mongoose.connection.once('open', databaseConnection).on('error', databaseError)
