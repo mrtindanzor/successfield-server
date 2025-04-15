@@ -14,6 +14,66 @@ export default async function courses_controller(_, res){
   return res.json({ mix: data })
 }
 
+export async function edit_courses_controller(req, res){
+  let { previousCourseCode, course, courseCode, overview, duration, availability, certificate, fee } = req.body
+  if(!course) return res.json({ status: 403, msg: 'Enter a course name' })
+  if(!courseCode) return res.json({ status: 403, msg: 'Enter a course code' })
+  if(!overview) return res.json({ status: 403, msg: 'Enter course overview' })
+  if(!certificate) return res.json({ status: 403, msg: '' })
+  
+  course = course.split('/').join(' or ')
+  overview = overview.split('/').join(' or ')
+  
+  const fullCourse = { previousCourseCode, course, courseCode, overview, duration, availability, certificate, fee }
+
+  const updatedCourse = await coursesModel.findOneAndUpdate({ courseCode: previousCourseCode }, fullCourse, { new: true } )
+  const updateModules = await modulesModel.updateMany({ courseCode: previousCourseCode }, { $set: { courseCode } }, { new: true } )
+  const updateBenefits = await benefitsModel.findOneAndUpdate({ courseCode: previousCourseCode }, { $set: { courseCode } }, { new: true } )
+  const updateObjectives = await objectivesModel.findOneAndUpdate({ courseCode: previousCourseCode }, { $set: { courseCode } }, { new: true } )
+  const updateOutlines = await outlinesModel.findOneAndUpdate({ courseCode: previousCourseCode }, { $set: { courseCode } }, { new: true } )
+  if(!updatedCourse || !updateModules || !updateBenefits || !updateObjectives || !updateOutlines){
+    await coursesModel.findOneAndUpdate({ courseCode }, fullCourse, { new: true } )
+    await modulesModel.updateMany({ courseCode }, { $set: { courseCode } })
+    await benefitsModel.findOneAndUpdate({ courseCode }, { $set: { courseCode } })
+    await objectivesModel.findOneAndUpdate({ courseCode }, { $set: { courseCode } })
+    await outlinesModel.findOneAndUpdate({ courseCode }, { $set: { courseCode } })
+
+    return res.json({ status: 403, msg: 'Error encountered' })
+  } 
+  return res.json({ status: 201, msg: 'Course files edited' })
+}
+
+export async function edit_course_modules(req, res){
+  const { modules } = req.body
+
+  for(const module of modules){
+    const { title, courseCode } = module
+    if(!title) return res.json({ status: 403, msg: 'Some fields are missing module titles' })
+    if(!courseCode) return res.json({ status: 403, msg: 'Assign course codes to modules' })
+  }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 export async function create_courses(_, res){
   const fetchedCourses = await courseModel.find({ })
   .catch(err => res.json({ msg: err.message }))

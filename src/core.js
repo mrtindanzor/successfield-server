@@ -35,8 +35,7 @@ const addressShema = new schema({
   state: String,
   city: String,
   address1: String,
-  address2: String,
-  postalCode: String
+  address2: String
 })
 
 const moduleSchema = new schema({
@@ -60,10 +59,10 @@ const userSchema = new schema({
   phone: Number,
   address: addressShema,
   studentNumber: String,
-  programme: String,
+  programmes: [String],
   birthDate: String,
-  idDocument: { photo: String }, 
-  passportPhoto: { photo: String },
+  idDocument: String, 
+  passportPhoto: String,
   educationLevel: String,
   date: String,
   verificationCode: String,

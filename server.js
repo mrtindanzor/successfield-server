@@ -13,7 +13,7 @@ server.use(cors({
   credentials: true
 }))
 server.use(cookieParser(env.COOKIE_SECRET_KEY))
-server.use(express.json())
+server.use(express.json({ limit: '20mb' }))
 server.use('/successfield', successfield_router)
 
 server.listen(PORT, function() { console.log('Server running on port', PORT)})

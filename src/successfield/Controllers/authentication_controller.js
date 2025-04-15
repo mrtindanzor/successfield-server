@@ -4,19 +4,28 @@ import { createStudentId, env, userModel } from '../../core.js';
 const stringPattern = /^[\w\s.,-]+$/
 const emailPattern = /^[^@\s]+@[^@\s]+\.[^@\s]+$/
 
+function createJwtCookies(res, payload, getBack=''){
+  const token = jsonwebtoken.sign(payload, env.ACCESS_TOKEN_SECRET, { expiresIn: '15m' })
+  const refreshToken = jsonwebtoken.sign(payload, env.REFRESH_TOKEN_SECRET, { expiresIn: '1h' })
+  if(env.PROD_ENV === 'PROD'){
+    res.cookie('ac', refreshToken, { signed: true, httpOnly: true, secure: env.PROD_ENV === 'PROD', maxAge: 60 * 60 * 1000, sameSite: 'none' })
+  }
+    else{
+    res.cookie('ac', refreshToken, { signed: true, httpOnly: true, secure: false, maxAge: 60 * 60 * 1000 })
+  }
+  if(getBack) return token
+}
+
 export async function registerController(req, res){
-  const idDocuments = req.files.idDocument?.[0]
-  const passportPhotos = req.files.passportPhoto?.[0]
-  console.log(req.files)
-  console.log(idDocuments)
-  console.log(passportPhotos)
-  return
   let {  programme, firstname, middlename, surname, birthDate, address, idDocument, passportPhoto, phoneNumber, email, educationLevel, contact, password, cpassword } = req.body
+
   if(contact) return res.json({ status: 403, msg: 'Registration could not be completed at the moment' })
   if(!programme) return res.json({ status: 403, msg: 'Select a programme' })
   if(!firstname) return res.json({ status: 403, msg: 'Enter your firstname' })
   if(!surname) return res.json({ status: 403, msg: 'Enter your surname' })
   if(!address) return res.json({ status: 403, msg: 'Enter your address' })
+  if(!idDocument) return res.json({ status: 403, msg: 'Select an ID document' })
+  if(!passportPhoto) return res.json({ status: 403, msg: 'Select a passport photo' })
   if(!phoneNumber) return res.json({ status: 403, msg: 'Enter your contact number' })
   if(!educationLevel) return res.json({ status: 403, msg: 'Select your highest level of education' })
   if(!email) return res.json({ status: 403, msg: 'Enter your email' })
@@ -35,19 +44,22 @@ export async function registerController(req, res){
   if(!email.match(emailPattern)) return res.json({ status: 403, msg: 'Email contains invalid characters' })
 
   try {
+    await userModel.deleteOne({ email })
     const userExists = await userModel.findOne({ email }) 
     if(userExists) return res.json({ status: 403, msg: 'A user with this email address already exists.' })
     const users = await userModel.find({ })
     const hashedPassword = await bcrypt.hash(password, 10)
     const studentNumber = createStudentId(users).toLowerCase()
-    const studentDetails = { programme, firstname, middlename, surname, birthDate, address, idDocument, passportPhoto, phone: phoneNumber, email, educationLevel, password: hashedPassword, studentNumber, newApplication: true }
+    const studentDetails = { programmes: [programme], firstname, middlename, surname, birthDate, address, idDocument, passportPhoto, phone: phoneNumber, email, educationLevel, password: hashedPassword, studentNumber, newApplication: true }
     const newUser = new userModel(studentDetails)
     newUser.save()
       .then(() => {
         if(!newUser.isnew){
-          return res.json({ status: 201, msg: 'Application complete, wait for registrar confirmation.' })
+          return res.json({ status: 201, msg: 'Application complete, wait for registrars\' confirmation.' })
         }
+        return res.json({ status: 403, msg: 'Unable to complete application at the moment' })
       })
+      
   } catch (err){
     return res.json({ status: 500, msg: err.message })
   }
@@ -56,30 +68,22 @@ export async function registerController(req, res){
 export async function loginController(req, res){
   let { email, password } = req.body
   if(!email) return res.json({ status: 403, msg: 'Enter a valid email address' })
-  if(!password) return res.json({ status: 403, msg: 'Enter password' })
-  email = email.toLowerCase().trim()
-  password = password.trim()
-  if(!emailPattern.test(email)) return res.json({ status: 403, msg: 'Enter a valid email address' })
-
-  try{
-    const findUser = await userModel.findOne({ email })
-    if(!findUser) return res.json({ status: 404, msg: 'Invalid credentials' })
-    const isPasswordMatch = await bcrypt.compare(password, findUser.password)
-    if(!isPasswordMatch) return res.json({ status: 402, msg: 'Incorrect password' })
-    const user = { ...findUser._doc }
-    delete user.password
-    const token = jsonwebtoken.sign(user, env.ACCESS_TOKEN_SECRET, {expiresIn: '15m' })
-    const refreshToken = jsonwebtoken.sign(user, env.REFRESH_TOKEN_SECRET, {expiresIn: '1h' })
-
-    if(env.PROD_ENV === 'PROD'){
-      res.cookie('ac', refreshToken, { signed: true, httpOnly: true, secure: env.PROD_ENV === 'PROD', maxAge: 60 * 60 * 1000, sameSite: 'none' })
-    }
-      else {
-      res.cookie('ac', refreshToken, { signed: true, httpOnly: true, secure: false, maxAge: 60 * 60 * 1000 })
-    }
+    if(!password) return res.json({ status: 403, msg: 'Enter password' })
+      email = email.toLowerCase().trim()
+    password = password.trim()
+    if(!emailPattern.test(email)) return res.json({ status: 403, msg: 'Enter a valid email address' })
+      
+    try{
+      const findUser = await userModel.findOne({ email })
+      if(!findUser) return res.json({ status: 404, msg: 'Invalid credentials' })
+      const isPasswordMatch = await bcrypt.compare(password, findUser.password)
+      if(!isPasswordMatch) return res.json({ status: 402, msg: 'Incorrect password' })
+      const user = { ...findUser._doc, password: '', idDocument: '', passportPhoto: '' }
+      const token = createJwtCookies(res, user, 'return') || ''
 
     return res.json({ status: 200, msg: 'Signed in, redirecting you to homepage.', token })  
   } catch(err){
+    console.log(err)
     return res.json({ status: 500, msg: err.msg ?? 'An error was encoutered' })
   }
 } 
@@ -88,18 +92,12 @@ export async function refreshController(req, res){
   const cookie = req.signedCookies.ac
   if(!cookie) return res.json({ token: '' })
     try{
-      jsonwebtoken.verify(cookie, env.REFRESH_TOKEN_SECRET, (err, user) => {
+      jsonwebtoken.verify(cookie, env.REFRESH_TOKEN_SECRET, async (err, user) => {
         if(err) return res.json({ token: ''})
-        delete user.iat
-        delete user.exp
-        const token = jsonwebtoken.sign(user, env.ACCESS_TOKEN_SECRET, { expiresIn: '15m' })
-        const refreshToken = jsonwebtoken.sign(user, env.REFRESH_TOKEN_SECRET, { expiresIn: '1h' })
-        if(env.PROD_ENV === 'PROD'){
-          res.cookie('ac', refreshToken, { signed: true, httpOnly: true, secure: env.PROD_ENV === 'PROD', maxAge: 60 * 60 * 1000, sameSite: 'none' })
-        }
-          else{
-          res.cookie('ac', refreshToken, { signed: true, httpOnly: true, secure: false, maxAge: 60 * 60 * 1000 })
-        }
+        const latestUser = await userModel.findOne({ email: user.email })
+        if(!latestUser) return res.json({ token: '' })
+        const newUser = { ...latestUser._doc, passportPhoto: '', idDocument:'' }
+        const token = createJwtCookies(res, newUser, 'return') || ''
         return res.json({ token })
       })
     }
@@ -107,4 +105,66 @@ export async function refreshController(req, res){
         console.log(err.message)
         return res.json({  token: '' })
     }
+}
+
+export async function getUserPicture(req, res) {
+  const { email } = req.body
+
+  const user = await userModel.findOne({ email })
+  if(!user) return res.json({ pic: '' })
+  const pic = user.passportPhoto || user.image?.profileImage.url || ''
+  return res.json({ pic })
+    
+}
+
+export async function change_password(req, res){
+  const { email, oldPassword, newPassword, confirmNewPassword } = req.body
+
+  if(newPassword !== confirmNewPassword) return res.json({ status: 403, msg: 'Passwords do not match' })
+  const user = await userModel.findOne({ email })
+  if(!user) return res.json({ status: 404, msg: 'Unable to process request at the moment' })
+  const isMatch = await bcrypt.compare(oldPassword, user.password)
+  if(!isMatch) return res.json({ status: 403, msg: 'Old password is not correct' })
+  const hashedPassword = await bcrypt.hash(newPassword, 10)
+  const isChanged = userModel.findOneAndUpdate({ email },{ $set: { password: hashedPassword } },{ new: true })
+  if(isChanged) return res.json({ status: 201, msg: 'Password changed' })
+  return res.json({ status: 500, msg: 'Unable to process request at the moment' })
+}
+
+export async function change_name(req, res){
+  const { email, firstname, middlename, surname } = req.body
+
+  if(!firstname || !surname) return res.json({ status: 403, msg: 'Enter a valid name' })
+  const user = await userModel.findOne({ email })
+  if(user.namechanged && !user.admin) return res.json({ status: 403, msg: 'Name can only changed once, contact support for any changes' })
+  const isChanged = await userModel.findOneAndUpdate({ email },{ $set: { firstname, middlename, surname, namechanged: Boolean(user.admin) } }, { new: true })
+  if(isChanged) return res.json({ status: 201, msg: "Name updated" })
+  return res.json({ status: 500, msg: 'Unable to process request at the moment' })
+}
+
+export async function change_email(req, res) {
+  const { email, newEmail } = req.body
+
+  if(!emailPattern.test(newEmail)) return res.json({ status: 403, msg: 'Invalid email format' })
+  if(email === newEmail) return res.json({ status: 403, msg: 'New email must not be the same as old email' })
+  const isExists = await userModel.findOne({ email: newEmail })
+  if(isExists) return res.json({ status: 403, msg: 'A user with this email exists' })
+  const isUpdated = await userModel.findOneAndUpdate({ email }, { $set: { email: newEmail } },{ new: true })
+  if(isUpdated) {
+    const user = { ...isUpdated, password: '', idDocument: '', passportPhoto: '' }
+    createJwtCookies(res, user)
+    return res.json({ status: 201, msg: 'Email updated' })
+  }
+  return res.json({ status: 500, msg: 'Unable to process request at the moment' })
+}
+
+export async function change_phone(req, res) {
+  const { email, phoneNumber } = req.body
+  console.log(req.body)
+
+  if(!phoneNumber) return res.json({ status: 403, msg: 'Invalid phone number' })
+  if(!email) return res.json({ status: 403, msg: 'Unable to process request at the moment' })
+  const isUpdated = await userModel.findOneAndUpdate({ email }, { $set: { phone: phoneNumber } },{ new: true })
+  if(isUpdated) return res.json({ status: 201, msg: 'Phone number updated' })
+  return res.json({ status: 500, msg: 'Unable to process request at the moment' })
 }
