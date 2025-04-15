@@ -112,9 +112,10 @@ export async function getUserPicture(req, res) {
 
   const user = await userModel.findOne({ email })
   if(!user) return res.json({ pic: '' })
-  const pic = user.passportPhoto || user.image?.profileImage.url || ''
-  return res.json({ pic })
-    
+  const currentUser = { ...user._doc }
+  if(currentUser.image) return res.json({ pic: currentUser.image.url })
+  if(currentUser.passportPhoto) return res.json({ pic: currentUser.passportPhoto })
+  return res.json({ pic: '' })
 }
 
 export async function change_password(req, res){
