@@ -4,16 +4,17 @@ import { createStudentId, env, userModel } from '../../core.js';
 const stringPattern = /^[\w\s.,-]+$/
 const emailPattern = /^[^@\s]+@[^@\s]+\.[^@\s]+$/
 
-function createJwtCookies(res, payload, getBack=''){
+const setAcToken = (res, payload) => {
   const token = jsonwebtoken.sign(payload, env.ACCESS_TOKEN_SECRET, { expiresIn: '15m' })
-  const refreshToken = jsonwebtoken.sign(payload, env.REFRESH_TOKEN_SECRET, { expiresIn: '1h' })
+  const refreshToken = jsonwebtoken.sign({ email: payload.email }, env.REFRESH_TOKEN_SECRET, { expiresIn: '1h' })
   if(env.PROD_ENV === 'PROD'){
-    res.cookie('ac', refreshToken, { signed: true, httpOnly: true, secure: env.PROD_ENV === 'PROD', maxAge: 60 * 60 * 1000, sameSite: 'none' })
+    res.cookie('ac', refreshToken , { signed: true, httpOnly: true, secure: env.PROD_ENV === 'PROD', maxAge: 60 * 60 * 1000, sameSite: 'none' })
   }
     else{
     res.cookie('ac', refreshToken, { signed: true, httpOnly: true, secure: false, maxAge: 60 * 60 * 1000 })
   }
-  if(getBack) return token
+
+  return token
 }
 
 export async function registerController(req, res){
@@ -79,9 +80,9 @@ export async function loginController(req, res){
       const isPasswordMatch = await bcrypt.compare(password, findUser.password)
       if(!isPasswordMatch) return res.json({ status: 402, msg: 'Incorrect password' })
       const user = { ...findUser._doc, password: '', idDocument: '', passportPhoto: '' }
-      const token = createJwtCookies(res, user, 'return') || ''
+      const token = setAcToken(res, user)
 
-    return res.json({ status: 200, msg: 'Signed in, redirecting you to homepage.', token })  
+      return res.json({ status: 200, msg: 'Signed in, redirecting you to homepage.', token })  
   } catch(err){
     console.log(err)
     return res.json({ status: 500, msg: err.msg ?? 'An error was encoutered' })
@@ -94,10 +95,11 @@ export async function refreshController(req, res){
     try{
       jsonwebtoken.verify(cookie, env.REFRESH_TOKEN_SECRET, async (err, user) => {
         if(err) return res.json({ token: ''})
+        
         const latestUser = await userModel.findOne({ email: user.email })
         if(!latestUser) return res.json({ token: '' })
         const newUser = { ...latestUser._doc, passportPhoto: '', idDocument:'' }
-        const token = createJwtCookies(res, newUser, 'return') || ''
+        const token = setAcToken(res, newUser)
         return res.json({ token })
       })
     }
@@ -151,13 +153,21 @@ export async function change_email(req, res) {
   if(email === newEmail) return res.json({ status: 403, msg: 'New email must not be the same as old email' })
   const isExists = await userModel.findOne({ email: newEmail })
   if(isExists) return res.json({ status: 403, msg: 'A user with this email exists' })
-  const isUpdated = await userModel.findOneAndUpdate({ email }, { $set: { email: newEmail } },{ new: true })
-  if(isUpdated) {
-    const user = { ...isUpdated, password: '', idDocument: '', passportPhoto: '' }
-    createJwtCookies(res, user)
-    return res.json({ status: 201, msg: 'Email updated' })
+
+
+  try{
+    const isUpdated = await userModel.findOneAndUpdate({ email }, { $set: { email: newEmail } },{ new: true })
+
+    if(isUpdated) {
+      const user = { ...isUpdated._doc, password: '', idDocument: '', passportPhoto: '' }
+      
+      const token = setAcToken(res, user) 
+      res.json({ status: 201, msg: 'Email updated', token })
+    }
+  } catch(err){
+    return res.json({ status: 500, msg: 'Unable to process request at the moment' })
   }
-  return res.json({ status: 500, msg: 'Unable to process request at the moment' })
+  
 }
 
 export async function change_phone(req, res) {
