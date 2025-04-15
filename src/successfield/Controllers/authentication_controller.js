@@ -137,8 +137,9 @@ export async function change_name(req, res){
 
   if(!firstname || !surname) return res.json({ status: 403, msg: 'Enter a valid name' })
   const user = await userModel.findOne({ email })
-  if(user.namechanged && !user.admin) return res.json({ status: 403, msg: 'Name can only changed once, contact support for any changes' })
-  const isChanged = await userModel.findOneAndUpdate({ email },{ $set: { firstname, middlename, surname, namechanged: Boolean(user.admin) } }, { new: true })
+  const currentUser = { ...user._doc }
+  if(currentUser.namechanged && !currentUser.admin) return res.json({ status: 403, msg: 'Name can only changed once, contact support for any changes' })
+  const isChanged = await userModel.findOneAndUpdate({ email },{ $set: { firstname, middlename, surname, namechanged: true } }, { new: true })
   if(isChanged) return res.json({ status: 201, msg: "Name updated" })
   return res.json({ status: 500, msg: 'Unable to process request at the moment' })
 }
@@ -161,7 +162,6 @@ export async function change_email(req, res) {
 
 export async function change_phone(req, res) {
   const { email, phoneNumber } = req.body
-  console.log(req.body)
 
   if(!phoneNumber) return res.json({ status: 403, msg: 'Invalid phone number' })
   if(!email) return res.json({ status: 403, msg: 'Unable to process request at the moment' })
