@@ -14,7 +14,7 @@ export default async function courses_controller(_, res){
   return res.json({ mix: data })
 }
 
-export async function edit_courses_controller(req, res){
+export async function courses_operations_controller(req, res){
   let { 
     previousCourseCode, 
     course,
@@ -67,31 +67,23 @@ export async function edit_courses_controller(req, res){
       case 'add':
         const savecourse = new coursesModel(fullCourse)
         await savecourse.save()
-                .then(() => {
-                  if(!savecourse.isnew) return res.json({ status: 403, msg: "Failed adding new course" })
-                })
+        if(!savecourse || !savecourse._id) return res.json({ status: 403, msg: "Failed adding new course" })
               
         const saveBenefits = new benefitsModel({ courseCode, benefits: newBenefits })
         await saveBenefits.save()
-                .then(() => {
-                  if(!saveBenefits.isnew) return res.json({ status: 403, msg: "Failed adding new course benefits" })
-                })
+        if(!saveBenefits || !saveBenefits._id) return res.json({ status: 403, msg: "Failed adding new course benefits" })
               
         const saveOutlines = new outlinesModel({ courseCode, outlines: newOutlines })
         await saveOutlines.save()
-                .then(() => {
-                  if(!saveOutlines.isnew) return res.json({ status: 403, msg: "Failed adding new course outlines" })
-                })
+        if(!saveOutlines || !saveOutlines._id) return res.json({ status: 403, msg: "Failed adding new course outlines" })
               
         const saveObjectives = new objectivesModel({ courseCode, objectives: newObjectives })
         await saveObjectives.save()
-                .then(() => {
-                  if(!saveObjectives.isnew) return res.json({ status: 403, msg: "Failed adding new course objectives" })
-                })
+        if(!saveObjectives || !saveObjectives._id) return res.json({ status: 403, msg: "Failed adding new course objectives" })
           break;
       
       case 'delete':
-        const updatedCourse = await coursesModel.findOneAndDelete({ courseCode: previousCourseCode } { new: true } )
+        const updatedCourse = await coursesModel.findOneAndDelete({ courseCode: previousCourseCode }, { new: true } )
         if(!updatedCourse) return res.json({ status: 403, msg: 'Failed deleting course' })
           
         const updatingBenefits = await benefitsModel.findOneAndDelete({ courseCode }, { new: true } )
@@ -105,16 +97,16 @@ export async function edit_courses_controller(req, res){
           break
 
       case 'edit':
-        const updatedCourse = await coursesModel.findOneAndUpdate({ courseCode: previousCourseCode }, fullCourse, { new: true } )
-        if(!updatedCourse) return res.json({ status: 403, msg: 'Failed updating course' })
+        const isUpdatedCourse = await coursesModel.findOneAndUpdate({ courseCode: previousCourseCode }, fullCourse, { new: true } )
+        if(!isUpdatedCourse) return res.json({ status: 403, msg: 'Failed updating course' })
           
-        const updatingBenefits = await benefitsModel.findOneAndUpdate({ courseCode }, { $set: { benefits: newBenefits } } )
+        const isUpdatingBenefits = await benefitsModel.findOneAndUpdate({ courseCode }, { $set: { benefits: newBenefits } } )
         if(!updatingBenefits) return res.json({ status: 403, msg: 'Failed updating course benefits' })
         
-        const updatingObjectives = await objectivesModel.findOneAndUpdate({ courseCode }, { $set: { objectives: newObjectives } } )
+        const isUpdatingObjectives = await objectivesModel.findOneAndUpdate({ courseCode }, { $set: { objectives: newObjectives } } )
         if(!updatingObjectives) return res.json({ status: 403, msg: 'Failed updating course objectives' })
         
-        const updatingOutlines = await outlinesModel.findOneAndUpdate({ courseCode }, { $set: { outlines: newOutlines } } )
+        const isUpdatingOutlines = await outlinesModel.findOneAndUpdate({ courseCode }, { $set: { outlines: newOutlines } } )
         if(!updatingOutlines) return res.json({ status: 403, msg: 'Failed updating course outlines' })
         
         if(previousCourseCode.trim().toLowerCase() !== courseCode.trim().toLowerCase() ){
@@ -141,8 +133,8 @@ export async function edit_courses_controller(req, res){
 
 }
 
-export async function edit_course_modules(req, res){
-  const { modules } = req.body
+export async function modules_operations_controller(req, res){
+  const { modules, operation } = req.body
 
   if(!modules) return res.json({ status: 403, msg: 'Add modules to continue' })
 
@@ -170,7 +162,7 @@ export async function edit_course_modules(req, res){
 
       const isExists = await modulesModel.findOne({ courseCode: module.courseCode, title: module.title })
 
-      if(isExists) {
+      if(isExists && operation === 'add') {
         failedCount.push({ title: module.title, courseCode: module.courseCode, reason: 'Module with same title already exists' })
         continue
       }
@@ -202,23 +194,36 @@ export async function edit_course_modules(req, res){
         topics,
         notes
       }
-  
-      const addModule = new modulesModel(m)
-      addModule.save()
-        .then(() => {
-          if(!addModule.isnew){
+      
+      switch (operation) {
+        case 'add':
+          const addModule = new modulesModel(m)
+          await addModule.save()
+          if(!addModule || !addModule._id){
             successCount++
           } else{
-            failedCount.push({ title: m.title, courseCode: m.courseCode, reason: 'Error saving file to database' })
+            failedCount.push({ title: m.title, courseCode: m.courseCode, reason: 'Error adding module' })
           }
-        })
+            break;
+      
+        case 'edit':
+          const updateModule = await modulesModel.findOneAndUpdate({ courseCode, title: module.titles })
+          if(!updateModule){
+            failedCount.push({ title: m.title, courseCode: m.courseCode, reason: 'Error updating module' })
+          } else{
+            successCount++
+          }
+            break;
+      }
+
+      
     }
   } catch (err) {
     return res.json({ status: 500, msg: 'An error occured while performing operations' })
   }
 
-  if(failedCount.length > 0) return res.json({ status: 403, msg: 'Operation completed with some errors', successCount, failedCount })
-  return res.json({ status: 201, msg: 'Added modules successfully' successCount, failedCount })
+  if(failedCount.length > 0) return res.json({ status: 403, msg: 'Operation completed with some errors', success: successCount, failed: failedCount })
+  return res.json({ status: 201, msg: 'Added modules successfully', success: successCount, failed: failedCount })
 }
 
 

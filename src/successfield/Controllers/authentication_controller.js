@@ -1,6 +1,6 @@
 import jsonwebtoken from 'jsonwebtoken';
 import bcrypt from 'bcrypt';
-import { createStudentId, env, userModel } from '../../core.js';
+import { generateCode, env, userModel, applicationModel } from '../../core.js';
 const stringPattern = /^[\w\s.,-]+$/
 const emailPattern = /^[^@\s]+@[^@\s]+\.[^@\s]+$/
 
@@ -43,6 +43,10 @@ export async function registerController(req, res){
   if(middlename && !middlename.match(stringPattern)) return res.json({ status: 403, msg: 'Middlename contains invalid characters' })
   if(!surname.match(stringPattern)) return res.json({ status: 403, msg: 'Surname contains invalid characters' })
   if(!email.match(emailPattern)) return res.json({ status: 403, msg: 'Email contains invalid characters' })
+  const year = new Date().getFullYear()
+  const month = new Date().getMonth()
+  const day = new Date().getDay() + 1
+  const date = `${year} - ${month} - ${day}`
 
   try {
     await userModel.deleteOne({ email })
@@ -50,16 +54,38 @@ export async function registerController(req, res){
     if(userExists) return res.json({ status: 403, msg: 'A user with this email address already exists.' })
     const users = await userModel.find({ })
     const hashedPassword = await bcrypt.hash(password, 10)
-    const studentNumber = createStudentId(users).toLowerCase()
-    const studentDetails = { programmes: [programme], firstname, middlename, surname, birthDate, address, idDocument, passportPhoto, phone: phoneNumber, email, educationLevel, password: hashedPassword, studentNumber, newApplication: true }
+    const studentNumber = generateCode(users, 'student')
+    const studentDetails = {
+      firstname,
+      middlename,
+      surname,
+      birthDate,
+      address,
+      idDocument,
+      passportPhoto,
+      phone: phoneNumber,
+      email,
+      educationLevel,
+      password: hashedPassword,
+      studentNumber,
+      newApplication: true,
+      date 
+    }
+    const isTerm = await applicationModel.findOne({ term: year })
+    if(!isTerm){
+      const newApplication = new applicationModel({ term: year, students: [{ studentNumber, date }] })
+      await newApplication.save()
+      if(!newApplication || !newApplication._id) return res.json({ status: 403, msg: 'Application could not be completed at the moment' })
+            
+    } else{
+      const updateApplications = await applicationModel.findOneAndUpdate({ term: year }, { $push: { students:  { studentNumber, date } } }, { new: true })
+      if(!updateApplications) return res.json({ status: 403, msg: 'Application could not be completed at the moment' })
+    }
+    
     const newUser = new userModel(studentDetails)
-    newUser.save()
-      .then(() => {
-        if(!newUser.isnew){
-          return res.json({ status: 201, msg: 'Application complete, wait for registrars\' confirmation.' })
-        }
-        return res.json({ status: 403, msg: 'Unable to complete application at the moment' })
-      })
+    await newUser.save()
+    if(!newUser || !newUser._id) return res.json({ status: 201, msg: 'Application complete, wait for registrars\' confirmation.' })
+    return res.json({ status: 403, msg: 'Unable to complete application at the moment' })
       
   } catch (err){
     return res.json({ status: 500, msg: err.message })
