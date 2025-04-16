@@ -30,6 +30,21 @@ export async function courses_operations_controller(req, res){
     operation
   } = req.body
 
+  console.log({ 
+    previousCourseCode, 
+    course,
+    courseCode,
+    overview,
+    duration,
+    availability,
+    certificate,
+    fee,
+    benefits,
+    objectives,
+    outlines,
+    operation
+  })
+
   if(!course) return res.json({ status: 403, msg: 'Enter a course name' })
   if(!courseCode) return res.json({ status: 403, msg: 'Enter a course code' })
   if(!overview) return res.json({ status: 403, msg: 'Enter course overview' })
@@ -65,6 +80,8 @@ export async function courses_operations_controller(req, res){
   try {
     switch (operation) {
       case 'add':
+        const isCourseExists = await coursesModel.findOne({ $or: [ { course },{courseCode} ] })
+        if(isCourseExists) return res.json({ status: 403, msg: 'A course with this name or courseCode already exists' })
         const savecourse = new coursesModel(fullCourse)
         await savecourse.save()
         if(!savecourse || !savecourse._id) return res.json({ status: 403, msg: "Failed adding new course" })
@@ -80,6 +97,7 @@ export async function courses_operations_controller(req, res){
         const saveObjectives = new objectivesModel({ courseCode, objectives: newObjectives })
         await saveObjectives.save()
         if(!saveObjectives || !saveObjectives._id) return res.json({ status: 403, msg: "Failed adding new course objectives" })
+          console.log('here')
           break;
       
       case 'delete':
@@ -97,24 +115,25 @@ export async function courses_operations_controller(req, res){
           break
 
       case 'edit':
-        const isUpdatedCourse = await coursesModel.findOneAndUpdate({ courseCode: previousCourseCode }, fullCourse, { new: true } )
+        const isUpdatedCourse = await coursesModel.findOneAndUpdate({ courseCode: previousCourseCode }, fullCourse, { new: true } ).catch(err => console.log('course error ', err))
+        console.log(isUpdatedCourse)
         if(!isUpdatedCourse) return res.json({ status: 403, msg: 'Failed updating course' })
           
         const isUpdatingBenefits = await benefitsModel.findOneAndUpdate({ courseCode }, { $set: { benefits: newBenefits } } )
-        if(!updatingBenefits) return res.json({ status: 403, msg: 'Failed updating course benefits' })
+        if(!isUpdatingBenefits) return res.json({ status: 403, msg: 'Failed updating course benefits' })
         
         const isUpdatingObjectives = await objectivesModel.findOneAndUpdate({ courseCode }, { $set: { objectives: newObjectives } } )
-        if(!updatingObjectives) return res.json({ status: 403, msg: 'Failed updating course objectives' })
+        if(!isUpdatingObjectives) return res.json({ status: 403, msg: 'Failed updating course objectives' })
         
         const isUpdatingOutlines = await outlinesModel.findOneAndUpdate({ courseCode }, { $set: { outlines: newOutlines } } )
-        if(!updatingOutlines) return res.json({ status: 403, msg: 'Failed updating course outlines' })
+        if(!isUpdatingOutlines) return res.json({ status: 403, msg: 'Failed updating course outlines' })
         
         if(previousCourseCode.trim().toLowerCase() !== courseCode.trim().toLowerCase() ){
           const updateModules = await modulesModel.updateMany({ courseCode: previousCourseCode }, { $set: { courseCode } }, { new: true } )
           const updateBenefits = await benefitsModel.findOneAndUpdate({ courseCode: previousCourseCode }, { $set: { courseCode } }, { new: true } )
           const updateObjectives = await objectivesModel.findOneAndUpdate({ courseCode: previousCourseCode }, { $set: { courseCode } }, { new: true } )
           const updateOutlines = await outlinesModel.findOneAndUpdate({ courseCode: previousCourseCode }, { $set: { courseCode } }, { new: true } )
-          if(!updatedCourse || !updateModules || !updateBenefits || !updateObjectives || !updateOutlines){
+          if(!updateModules || !updateBenefits || !updateObjectives || !updateOutlines){
             await coursesModel.findOneAndUpdate({ courseCode }, fullCourse, { new: true } )
             await modulesModel.updateMany({ courseCode }, { $set: { courseCode } })
             await benefitsModel.findOneAndUpdate({ courseCode }, { $set: { courseCode } })
@@ -124,11 +143,14 @@ export async function courses_operations_controller(req, res){
             return res.json({ status: 403, msg: 'Error encountered' })
           } 
         }
-        return res.json({ status: 201, msg: 'Operation completed' })
           break
     }
+
+    console.log('edit operations')
+    return res.json({ status: 201, msg: 'Operation completed' })
   } catch (err) {
-    return res.json({ status: 500, msg: 'Operation could not be completed' })
+    console.log(err)
+    return res.json({ status: 500, msg: err.message })
   }
 
 }
@@ -219,7 +241,7 @@ export async function modules_operations_controller(req, res){
       
     }
   } catch (err) {
-    return res.json({ status: 500, msg: 'An error occured while performing operations' })
+    return res.json({ status: 500, msg: err.message })
   }
 
   if(failedCount.length > 0) return res.json({ status: 403, msg: 'Operation completed with some errors', success: successCount, failed: failedCount })
