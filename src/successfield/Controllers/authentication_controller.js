@@ -155,7 +155,7 @@ export async function change_password(req, res){
   const isMatch = await bcrypt.compare(oldPassword, user.password)
   if(!isMatch) return res.json({ status: 403, msg: 'Old password is not correct' })
   const hashedPassword = await bcrypt.hash(newPassword, 10)
-  const isChanged = userModel.findOneAndUpdate({ email },{ $set: { password: hashedPassword } },{ new: true })
+  const isChanged = await userModel.findOneAndUpdate({ email },{ $set: { password: hashedPassword } },{ new: true })
   if(isChanged) return res.json({ status: 201, msg: 'Password changed' })
   return res.json({ status: 500, msg: 'Unable to process request at the moment' })
 }
