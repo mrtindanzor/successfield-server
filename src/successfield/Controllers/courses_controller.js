@@ -163,12 +163,6 @@ export async function modules_operations_controller(req, res){
   let successCount = 0
   let failedCount = []
 
-  for(const module of modules){
-    const { title, courseCode } = module
-    
-  }
-
-
   try {
     for(const module of modules){
 
@@ -193,17 +187,17 @@ export async function modules_operations_controller(req, res){
       const topics = []
       const notes = []
   
-      for(const value of modules.objectives ){
+      for(const value of module.objectives ){
         if(!value) continue
         objectives.push(value)
       }
   
-      for(const value of modules.topics ){
+      for(const value of module.topics ){
         if(!value) continue
         topics.push(value)
       }
   
-      for(const value of modules.notes ){
+      for(const value of module.notes ){
         if(!value) continue
         notes.push(value)
       }
@@ -229,7 +223,7 @@ export async function modules_operations_controller(req, res){
             break;
       
         case 'edit':
-          const updateModule = await modulesModel.findOneAndUpdate({ courseCode, title: module.titles })
+          const updateModule = await modulesModel.findOneAndUpdate({ courseCode: m.courseCode, title: module.titles })
           if(!updateModule){
             failedCount.push({ title: m.title, courseCode: m.courseCode, reason: 'Error updating module' })
           } else{
@@ -243,7 +237,7 @@ export async function modules_operations_controller(req, res){
   } catch (err) {
     return res.json({ status: 500, msg: err.message })
   }
-
+  
   if(failedCount.length > 0) return res.json({ status: 403, msg: 'Operation completed with some errors', success: successCount, failed: failedCount })
   return res.json({ status: 201, msg: 'Added modules successfully', success: successCount, failed: failedCount })
 }
