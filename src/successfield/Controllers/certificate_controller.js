@@ -18,6 +18,12 @@ export async function certificate_operations(req, res) {
           certificateCode
         } = req.body
 
+  if(operation === 'findCertificate'){
+    const findCertificates = await certificateModel.find({ studentNumber })
+    if(!findCertificates && findCertificates.length < 1) return res.json({ status: 403, msg: `No certificate associated to Student number: ${studentNumber}` })
+    return res.json({ status: 200, findCertificates })
+  }
+
   if(courseCode || courseCode || studentNumber || dateCompleted) return res.json({ status: 403, msg: 'All fields required' })
   
   studentNumber = studentNumber.toLowerCase().trim()

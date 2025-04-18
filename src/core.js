@@ -31,7 +31,8 @@ const certificateSchema = new schema({
   certificateCode: String,
   programme: String,
   dateCompleted: String,
-  courseCode: String
+  courseCode: String,
+  year: String
 })
 
 const applicationSchema = new schema({
