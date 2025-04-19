@@ -64,12 +64,11 @@ export async function certificate_operations(req, res) {
     if(operation === 'add' || operation === 'edit'){
       const certificates = await certificateModel.find({ })
       certificateCode = generateCode(certificates, 'certificate', courseCode)
-      programme = await coursesModel.find({ courseCode })
+      programme = await coursesModel.findOne({ courseCode })
       if(!programme){
         failed.push({ ...certificate, reason: 'invalid course code' })
         continue
       }
-      programme = { ...programme._doc }
       programme = programme.course
     }
     
@@ -96,6 +95,7 @@ export async function certificate_operations(req, res) {
       } catch (err) {
         failed.push({ ...certificate, reason: 'an error was encountered' })
       }
+    break
 
     case 'edit':
       if(!certificateCode){
