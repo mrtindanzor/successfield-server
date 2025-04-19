@@ -28,6 +28,8 @@ export async function certificate_operations(req, res) {
       certificateCode
     } = certificate
 
+
+    const year = new Date().getFullYear()
     const oldCertificateCode = certificate.certificateCode
 
     if(!courseCode || !studentNumber || !dateCompleted){
@@ -79,7 +81,8 @@ export async function certificate_operations(req, res) {
       studentNumber,
       certificateCode,
       programme,
-      dateCompleted
+      dateCompleted,
+      year
     }
 
     switch (operation) {
