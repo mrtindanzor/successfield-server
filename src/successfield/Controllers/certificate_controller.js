@@ -10,74 +10,119 @@ export default async function verify_controller(req, res){
 }
 
 export async function certificate_operations(req, res) {
-  let {
-          operation,
-          courseCode,
-          studentNumber,
-          dateCompleted,
-          certificateCode
-        } = req.body
+  const failed = []
+  const { certificates, operation } = req.body
 
   if(operation === 'findCertificate'){
+    const {  studentNumber } = req.body
     const findCertificates = await certificateModel.find({ studentNumber })
-    if(!findCertificates && findCertificates.length < 1) return res.json({ status: 403, msg: `No certificate associated to Student number: ${studentNumber}` })
+    if(findCertificates.length < 1) return res.json({ status: 403, msg: `No certificate associated to Student number: ${studentNumber}` })
     return res.json({ status: 200, findCertificates })
   }
 
-  if(courseCode || courseCode || studentNumber || dateCompleted) return res.json({ status: 403, msg: 'All fields required' })
-  
-  studentNumber = studentNumber.toLowerCase().trim()
-  courseCode = courseCode.trim().toLowerCase()
-  dateCompleted = dateCompleted.trim().toLowerCase()
-  if(certificateCode) certificateCode = certificateCode.trim().toLowerCase()
-  let programme = ''
-  certificateCode = certificateCode || ''
+  for(const certificate of certificates){
+    let {
+      courseCode,
+      studentNumber,
+      dateCompleted,
+      certificateCode
+    } = certificate
 
-  if(operation === 'add' || operation === 'edit'){
-    const certificates = await certificateModel.find({ })
-    certificateCode = generateCode(certificates, 'certificate', courseCode)
-    programme = await coursesModel.find({ courseCode })
-    programme = { ...programme._doc }
-    programme = programme.course
-  }
+    const oldCertificateCode = certificate.certificateCode
 
-  switch (operation) {
+    if(!courseCode || !studentNumber || !dateCompleted){
+      failed.push({
+        courseCode: courseCode || '',
+        studentNumber: studentNumber || '',
+        dateCompleted: dateCompleted || '',
+        certificateCode: certificateCode || '',
+        reason: 'All fields required'
+      })
+
+      continue
+    }
+
+    studentNumber = studentNumber.toLowerCase().trim()
+    courseCode = courseCode.trim().toLowerCase()
+    dateCompleted = dateCompleted.trim().toLowerCase()
+    if(certificateCode) certificateCode = certificateCode.trim().toLowerCase()
+    let programme = ''
+    let student = ''
+    certificateCode = certificateCode || ''
+
+    try{
+      student = await userModel.findOne({ studentNumber })
+      if(!student){
+        failed.push({ ...certificate, reason: "Invalid student id" })
+        continue
+      }
+    } catch(err){
+      failed.push({ ...certificate, reason: 'an error was encountered' })
+      constinue
+    }
+
+    if(operation === 'add' || operation === 'edit'){
+      const certificates = await certificateModel.find({ })
+      certificateCode = generateCode(certificates, 'certificate', courseCode)
+      programme = await coursesModel.find({ courseCode })
+      if(!programme){
+        failed.push({ ...certificate, reason: 'invalid course code' })
+        continue
+      }
+      programme = { ...programme._doc }
+      programme = programme.course
+    }
+    
+    const { firstname, middlename, surname } = student
+    const name = `${firstname} ${ middlename ?? '' } ${surname}`
+    const newCertificate = {
+      name,
+      studentNumber,
+      certificateCode,
+      programme,
+      dateCompleted
+    }
+
+    switch (operation) {
     case 'add':
       try {
-        const student = await userModel.findOne({ studentNumber })
-        if(!student) return res.json({ status: 403, msg: 'No student found' })
-        const name = student.firstname + ' ' + ( student.middlename ?? '' ) + ' ' + student.surname
-        const saveCertificate = new certificateModel({
-                                                      name,
-                                                      studentNumber,
-                                                      certificateCode,
-                                                      programme,
-                                                      dateCompleted
-                                                    })
-  
+        const saveCertificate = new certificateModel( newCertificate )
+
         await saveCertificate.save()
-        if(!saveCertificate || !saveCertificate._id) return res.json({ status: 403, msg: 'Failed saving certificate' })
-        return res.json({ status: 201, msg: `Certificate added with code ${certificateCode}` })
+        if(!saveCertificate || !saveCertificate._id) {
+          failed.push({ ...certificate, reason: 'error saving certificate' })
+          continue
+        }
       } catch (err) {
-        return res.json({ status: 500, msg: 'An error was encountered' })
+        failed.push({ ...certificate, reason: 'an error was encountered' })
       }
-        break;
-  
+
     case 'edit':
-      if(!certificateCode) return res.json({ status: 403, msg: 'Enter certifcate id' })
-      const updatedCertificate = await certificateModel.findOneAndUpdate({ courseCode },{ $set: { dateCompleted } })
+      if(!certificateCode){
+        failed.push({ ...certificate, reason: "invalid certificate id" })
+        continue
+      }
+      const updatedCertificate = await certificateModel.findOneAndUpdate({ certificateCode: oldCertificateCode }, newCertificate, { new: true })
+      if(!updatedCertificate){
+        failed.push({ ...certificate, reason: 'error updating certificate' })
+      }
         break;
 
     case 'delete': 
       try {
-        if(!certificateCode) return res.json({ status: 403, msg: 'Enter certifcate id' })
-        const deletedCertificate = await certificateModel.findOneAndDelete({ courseCode })
-        if(!deletedCertificate) return res.json({ status: 403, msg: 'Failed deleting certificate' })
+        if(!certificateCode){
+          return res.json({ status: 404, msg: 'no certificate code provided', failed: [{ ...certificate, reason: "No certificate code provided" }] })
+        }
+        const deletedCertificate = await certificateModel.findOneAndDelete({ certificateCode: oldCertificateCode })
+        if(!deletedCertificate) return res.json({ status: 403, msg: 'Failed deleting certificate', failed: [{ ...certificate, reason: "Error performing delete" }] })
         return res.json({ status: 201, msg: 'Certificate deleted' })
       } catch (err) {
-        return res.json({ status: 500, msg: 'Operation failed' })
+        return res.json({ status: 500, msg: 'Operation failed', failed: [{ ...certificate, reason: "An error occured" }] })
       }
-        break
   }
 
+  }
+
+  if(failed.length > 0) return res.json({ status: 403, msg: 'operation completed with some errors', failed })
+  return res.json({ status: 201, msg: 'operations completed successfully' })
 }
